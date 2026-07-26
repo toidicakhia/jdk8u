@@ -387,4 +387,14 @@ ifndef USE_SUNCC
   CFLAGS += -fno-omit-frame-pointer
 endif
 
+# Detect Android (bionic libc)
+ANDROID_DETECT := $(shell uname -o 2>/dev/null | grep -iq android && echo true)
+ifneq ($(ANDROID_DETECT),)
+  CFLAGS += -D__ANDROID__
+  # Clang does not define ARM by default, but HotSpot code uses #ifdef ARM
+  ifeq ($(BUILDARCH), arm)
+    CFLAGS += -DARM
+  endif
+endif
+
 -include $(HS_ALT_MAKE)/linux/makefiles/gcc.make

@@ -414,7 +414,7 @@ void* getProcessHandle();
 void buildJniFunctionName(const char *sym, const char *cname,
                           char *jniEntryName);
 
-extern int getErrorString(int err, char *buf, size_t len);
+extern char * getErrorString(int err, char *buf, size_t len);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif /* __cplusplus */

@@ -72,7 +72,9 @@
 # include <pwd.h>
 # include <poll.h>
 # include <ucontext.h>
+#ifndef __ANDROID__
 # include <fpu_control.h>
+#endif
 
 #ifdef AMD64
 #define REG_SP REG_RSP
@@ -545,26 +547,26 @@ JVM_handle_linux_signal(int sig,
 }
 
 void os::Linux::init_thread_fpu_state(void) {
-#ifndef AMD64
+#if !defined(AMD64) && !defined(__ANDROID__)
   // set fpu to 53 bit precision
   set_fpu_control_word(0x27f);
-#endif // !AMD64
+#endif // !AMD64 && !__ANDROID__
 }
 
 int os::Linux::get_fpu_control_word(void) {
-#ifdef AMD64
+#if defined(AMD64) || defined(__ANDROID__)
   return 0;
 #else
   int fpu_control;
   _FPU_GETCW(fpu_control);
   return fpu_control & 0xffff;
-#endif // AMD64
+#endif // AMD64 || __ANDROID__
 }
 
 void os::Linux::set_fpu_control_word(int fpu_control) {
-#ifndef AMD64
+#if !defined(AMD64) && !defined(__ANDROID__)
   _FPU_SETCW(fpu_control);
-#endif // !AMD64
+#endif // !AMD64 && !__ANDROID__
 }
 
 // Check that the linux kernel version is 2.4 or higher since earlier
@@ -870,11 +872,11 @@ void os::print_register_info(outputStream *st, void *context) {
 }
 
 void os::setup_fpu() {
-#ifndef AMD64
+#if !defined(AMD64) && !defined(__ANDROID__)
   address fpu_cntrl = StubRoutines::addr_fpu_cntrl_wrd_std();
   __asm__ volatile (  "fldcw (%0)" :
                       : "r" (fpu_cntrl) : "memory");
-#endif // !AMD64
+#endif // !AMD64 && !__ANDROID__
 }
 
 #ifndef PRODUCT

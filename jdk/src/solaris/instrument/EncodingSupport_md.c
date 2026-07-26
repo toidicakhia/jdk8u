@@ -69,7 +69,11 @@ utfInitialize(void)
     (void)setlocale(LC_ALL, "");
 
     /* Get the codeset name */
+#ifndef __ANDROID__
     codeset = (char*)nl_langinfo(CODESET);
+#else
+    codeset = "ASCII";
+#endif
     if ( codeset == NULL || codeset[0] == 0 ) {
         UTF_DEBUG(("NO codeset returned by nl_langinfo(CODESET)\n"));
         return;

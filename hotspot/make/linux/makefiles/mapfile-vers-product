@@ -261,8 +261,6 @@ SUNWprivate_1.1 {
                 numa_warn;
                 numa_error;
 
-                # Needed because there is no JVM interface for this.
-                sysThreadAvailableStackWithSlack;
 
                 # This is for Forte Analyzer profiling support.
                 AsyncGetCallTrace;

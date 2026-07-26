@@ -59,8 +59,8 @@ static char *isFileIdentical(char* buf, size_t size, char *pathname);
 
 #if defined(__linux__) || defined(_ALLBSD_SOURCE)
 static const char *ETC_TIMEZONE_FILE = "/etc/timezone";
-static const char *ZONEINFO_DIR = "/usr/share/zoneinfo";
-static const char *DEFAULT_ZONEINFO_FILE = "/etc/localtime";
+static const char *ZONEINFO_DIR = "@TERMUX_PREFIX@/share/zoneinfo";
+static const char *DEFAULT_ZONEINFO_FILE = "@TERMUX_PREFIX@/etc/localtime";
 #else
 static const char *SYS_INIT_FILE = "/etc/default/init";
 static const char *ZONEINFO_DIR = "/usr/share/lib/zoneinfo";

@@ -42,7 +42,7 @@ public class LinuxVirtualMachine extends HotSpotVirtualMachine {
     // location is the same for all processes, otherwise the tools
     // will not be able to find all Hotspot processes.
     // Any changes to this needs to be synchronized with HotSpot.
-    private static final String tmpdir = "/tmp";
+    private static final String tmpdir = "@TERMUX_PREFIX@/tmp";
 
     // Indicates if this machine uses the old LinuxThreads
     static boolean isLinuxThreads;

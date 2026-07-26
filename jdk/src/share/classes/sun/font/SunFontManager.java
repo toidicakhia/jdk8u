@@ -3822,7 +3822,7 @@ public abstract class SunFontManager implements FontSupport, FontManagerForSGE {
         java.security.AccessController.doPrivileged(
                             new java.security.PrivilegedAction() {
             public Object run() {
-                String type1Dir = "/usr/openwin/lib/X11/fonts/Type1";
+                String type1Dir = "@TERMUX_PREFIX@/openwin/lib/X11/fonts/Type1";
                 registerFontsInDir(type1Dir, true, Font2D.TYPE1_RANK,
                                    false, false);
                 return null;

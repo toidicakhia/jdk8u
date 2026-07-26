@@ -847,6 +847,8 @@ public class Config {
             name =  "/etc/krb5/krb5.conf";
         } else if (osname.contains("OS X")) {
             name = findMacosConfigFile();
+        } else if (osname.equals("Linux")) {
+            name =  "@TERMUX_PREFIX@/etc/krb5.conf";
         } else {
             name =  "/etc/krb5.conf";
         }
@@ -874,7 +876,7 @@ public class Config {
             return PREF_FILE;
         }
 
-        return "/etc/krb5.conf";
+        return "@TERMUX_PREFIX@/etc/krb5.conf";
     }
 
     private static String trimmed(String s) {

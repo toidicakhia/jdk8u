@@ -968,7 +968,45 @@ SetExecname(char **argv)
             exec_path = JLI_StringDup(buf);
         }
     }
-#else /* !__solaris__ && !__linux__ */
+#elif defined(__ANDROID__)
+    {
+        /* For Android, 'self' would point to /system/bin/app_process
+         * since we are really executing a Dalvik program at this point.
+         * argv[0] points to the Dalvik application name and we set the
+         * path to JAVA_HOME.
+         */
+        char buf[PATH_MAX+1];
+        char *p = NULL;
+        char *__java_home = getenv("JAVA_HOME");
+        if ((p = JLI_StrRChr(argv[0], '/')) != 0) {
+            p++;
+            if ((JLI_StrLen(p) == 4) && JLI_StrCmp(p, "java") == 0) {
+                if (*argv[0] != '/') {
+                    char *curdir = NULL;
+                    getcwd(buf, PATH_MAX);
+                    curdir = JLI_StringDup(buf);
+                    JLI_Snprintf(buf, PATH_MAX, "%s/%s", curdir, argv[0]);
+                    JLI_MemFree(curdir);
+                } else {
+                    JLI_Snprintf(buf, PATH_MAX, "%s", argv[0]);
+                }
+            } else {
+                if (__java_home != NULL) {
+                    JLI_Snprintf(buf, PATH_MAX, "%s/bin/java", __java_home);
+                } else {
+                    JLI_Snprintf(buf, PATH_MAX, "@TERMUX_PREFIX@/bin/java");
+                }
+            }
+        } else {
+            if (__java_home != NULL) {
+                JLI_Snprintf(buf, PATH_MAX, "%s/bin/java", __java_home);
+            } else {
+                JLI_Snprintf(buf, PATH_MAX, "@TERMUX_PREFIX@/bin/java");
+            }
+        }
+        exec_path = JLI_StringDup(buf);
+    }
+#else /* !__solaris__ && !__linux__ && !__ANDROID__ */
     {
         /* Not implemented */
     }

@@ -104,7 +104,7 @@ public class LinuxFileSystemProvider extends UnixFileSystemProvider {
     FileTypeDetector getFileTypeDetector() {
         Path userMimeTypes = Paths.get(AccessController.doPrivileged(
             new GetPropertyAction("user.home")), ".mime.types");
-        Path etcMimeTypes = Paths.get("/etc/mime.types");
+        Path etcMimeTypes = Paths.get("@TERMUX_PREFIX@/etc/mime.types");
 
         return chain(new GnomeFileTypeDetector(),
                      new MimeTypesFileTypeDetector(userMimeTypes),

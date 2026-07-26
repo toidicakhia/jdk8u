@@ -64,6 +64,14 @@ ifneq ($(BUILD_FLAVOR), debug)
   SA_OPT_FLAGS = $(OPT_CFLAGS)
 endif
 
+# On Android (bionic), libthread_db is not available
+ANDROID_DETECT := $(shell uname -o 2>/dev/null | grep -iq android && echo true)
+ifneq ($(ANDROID_DETECT),)
+  LIBTHREAD_DB =
+else
+  LIBTHREAD_DB = -lthread_db
+endif
+
 # if $(AGENT_DIR) does not exist, we don't build SA
 # also, we don't build SA on Itanium or zero.
 
@@ -103,7 +111,7 @@ $(LIBSAPROC): $(SASRCFILES) $(SAMAPFILE)
 	           $(SA_OPT_FLAGS)                                      \
 	           $(EXTRA_CFLAGS)                                      \
 	           -o $@                                                \
-	           -lthread_db -ldl
+	           $(LIBTHREAD_DB) -ldl
 ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
   ifneq ($(STRIP_POLICY),no_strip)
 	$(QUIETLY) $(OBJCOPY) --only-keep-debug $@ $(LIBSAPROC_DEBUGINFO)

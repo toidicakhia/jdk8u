@@ -255,11 +255,11 @@ bool os::have_special_privileges() {
 
 
 #ifndef SYS_gettid
-// i386: 224, ia64: 1105, amd64: 186, sparc 143
+// i386 & arm: 224, ia64: 1105, amd64: 186, sparc: 143, aarch64: 178
   #ifdef __ia64__
     #define SYS_gettid 1105
   #else
-    #ifdef __i386__
+    #if defined(__i386__) || defined(__arm__)
       #define SYS_gettid 224
     #else
       #ifdef __amd64__
@@ -267,6 +267,8 @@ bool os::have_special_privileges() {
       #else
         #ifdef __sparc__
           #define SYS_gettid 143
+        #elif defined(__aarch64__)
+          #define SYS_gettid 178
         #else
           #error define gettid for the arch
         #endif
@@ -584,6 +586,7 @@ void os::Linux::hotspot_sigmask(Thread* thread) {
 // detecting pthread library
 
 void os::Linux::libpthread_init() {
+#ifndef __ANDROID__
   // Save glibc and pthread version strings. Note that _CS_GNU_LIBC_VERSION
   // and _CS_GNU_LIBPTHREAD_VERSION are supported in glibc >= 2.3.2. Use a
   // generic name for earlier versions.
@@ -642,6 +645,11 @@ void os::Linux::libpthread_init() {
   if (os::Linux::is_NPTL() || os::Linux::supports_variable_stack_size()) {
      os::Linux::set_is_floating_stack();
   }
+#else
+  os::Linux::set_libpthread_version("NPTL");
+  os::Linux::set_is_NPTL();
+  os::Linux::set_is_floating_stack();
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1628,7 +1636,13 @@ const char* os::dll_file_extension() { return ".so"; }
 
 // This must be hard coded because it's the system's temporary
 // directory not the java application's temp directory, ala java.io.tmpdir.
-const char* os::get_temp_directory() { return "/tmp"; }
+const char* os::get_temp_directory() {
+#ifdef __ANDROID__
+  return "@TERMUX_PREFIX@/tmp";
+#else
+  return "/tmp";
+#endif
+}
 
 static bool file_exists(const char* filename) {
   struct stat statbuf;
@@ -1814,6 +1828,30 @@ bool os::dll_address_to_library_name(address addr, char* buf,
 
   buf[0] = '\0';
   if (offset) *offset = -1;
+  return false;
+}
+
+static bool read_so_path_from_maps(const char* so_name, char* buf, int buflen) {
+  FILE *fp = fopen("/proc/self/maps", "r");
+  if (!fp) {
+    return false;
+  }
+
+  char maps_buffer[2048];
+  while (fgets(maps_buffer, sizeof(maps_buffer), fp) != NULL) {
+    if (strstr(maps_buffer, so_name) == NULL) {
+      continue;
+    }
+
+    char *so_path = strchr(maps_buffer, '/');
+    if (so_path == NULL) continue;
+    so_path[strlen(so_path) - 1] = '\0'; // Cut trailing \n
+    jio_snprintf(buf, buflen, "%s", so_path);
+    fclose(fp);
+    return true;
+  }
+
+  fclose(fp);
   return false;
 }
 
@@ -2449,6 +2487,19 @@ void os::jvm_path(char *buf, jint buflen) {
                 CAST_FROM_FN_PTR(address, os::jvm_path),
                 dli_fname, sizeof(dli_fname), NULL);
   assert(ret, "cannot locate libjvm");
+#ifdef __ANDROID__
+  if (dli_fname[0] == '\0') {
+    return;
+  }
+  if (strchr(dli_fname, '/') == NULL) {
+    bool ok = read_so_path_from_maps(dli_fname, buf, buflen);
+    assert(ok, "unable to turn relative libjvm.so path into absolute");
+    return;
+  }
+  jio_snprintf(buf, buflen, "%s", dli_fname);
+  strncpy(saved_jvm_path, buf, MAXPATHLEN);
+  saved_jvm_path[MAXPATHLEN - 1] = '\0';
+#else
   char *rp = NULL;
   if (ret && dli_fname[0] != '\0') {
     rp = realpath(dli_fname, buf);
@@ -2509,6 +2560,8 @@ void os::jvm_path(char *buf, jint buflen) {
   }
 
   strncpy(saved_jvm_path, buf, MAXPATHLEN);
+  saved_jvm_path[MAXPATHLEN - 1] = '\0';
+#endif
 }
 
 void os::print_jni_name_prefix_on(outputStream* st, int args_size) {
@@ -3002,17 +3055,25 @@ extern "C" JNIEXPORT int fork1() { return fork(); }
 // Handle request to load libnuma symbol version 1.1 (API v1). If it fails
 // load symbol from base version instead.
 void* os::Linux::libnuma_dlsym(void* handle, const char *name) {
+#if defined(__ANDROID__) && __ANDROID_API__ < 24
+  void *f = dlsym(handle, name);
+#else
   void *f = dlvsym(handle, name, "libnuma_1.1");
   if (f == NULL) {
     f = dlsym(handle, name);
   }
+#endif
   return f;
 }
 
 // Handle request to load libnuma symbol version 1.2 (API v2) only.
 // Return NULL if the symbol is not defined in this particular version.
 void* os::Linux::libnuma_v2_dlsym(void* handle, const char* name) {
+#if defined(__ANDROID__) && __ANDROID_API__ < 24
+  return dlsym(handle, name);
+#else
   return dlvsym(handle, name, "libnuma_1.2");
+#endif
 }
 
 bool os::Linux::libnuma_init() {
@@ -3673,7 +3734,7 @@ void os::large_page_init() {
 static char* shmat_with_alignment(int shmid, size_t bytes, size_t alignment) {
   assert(is_size_aligned(bytes, alignment), "Must be divisible by the alignment");
 
-  if (!is_size_aligned(alignment, SHMLBA)) {
+  if (!is_size_aligned(alignment, getpagesize())) {
     assert(false, "Code below assumes that alignment is at least SHMLBA aligned");
     return NULL;
   }
@@ -3709,7 +3770,7 @@ static char* shmat_with_alignment(int shmid, size_t bytes, size_t alignment) {
 }
 
 static char* shmat_at_address(int shmid, char* req_addr) {
-  if (!is_ptr_aligned(req_addr, SHMLBA)) {
+  if (!is_ptr_aligned(req_addr, getpagesize())) {
     assert(false, "Requested address needs to be SHMLBA aligned");
     return NULL;
   }
@@ -5888,7 +5949,20 @@ bool os::is_thread_cpu_time_supported() {
 // Linux doesn't yet have a (official) notion of processor sets,
 // so just return the system wide load average.
 int os::loadavg(double loadavg[], int nelem) {
+#if defined(__ANDROID__) && __ANDROID_API__ < 29
+  if (nelem < 0) return -1;
+  if (nelem > 3) nelem = 3;
+
+  struct sysinfo si;
+  if (sysinfo(&si) == -1) return -1;
+
+  for (int i = 0; i < nelem; ++i) {
+    loadavg[i] = (double)(si.loads[i]) / (double)(1 << SI_LOAD_SHIFT);
+  }
+  return nelem;
+#else
   return ::getloadavg(loadavg, nelem);
+#endif
 }
 
 void os::pause() {

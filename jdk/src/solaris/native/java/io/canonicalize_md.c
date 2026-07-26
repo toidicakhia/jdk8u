@@ -194,7 +194,7 @@ canonicalize(char *original, char *resolved, int len)
         return -1;
     }
 
-    if (strlen(original) > PATH_MAX) {
+    if (strlen(original) >= PATH_MAX) {
         errno = ENAMETOOLONG;
         return -1;
     }
@@ -206,15 +206,20 @@ canonicalize(char *original, char *resolved, int len)
         return 0;
     }
     else {
+        if (errno == EINVAL || errno == ELOOP || errno == ENAMETOOLONG || errno == ENOMEM) {
+            return -1;
+        }
+
         /* Something's bogus in the original path, so remove names from the end
            until either some subpath works or we run out of names */
         char *p, *end, *r = NULL;
-        char path[PATH_MAX + 1];
+        char path[PATH_MAX];
 
-        // strlen(original) <= PATH_MAX, see above
-        strncpy(path, original, PATH_MAX);
-        // append null for == case
-        path[PATH_MAX] = '\0';
+        strncpy(path, original, sizeof(path));
+        if (path[PATH_MAX - 1] != '\0') {
+            errno = ENAMETOOLONG;
+            return -1;
+        }
         end = path + strlen(path);
 
         for (p = end; p > path;) {
@@ -258,14 +263,13 @@ canonicalize(char *original, char *resolved, int len)
             }
             strcpy(r + rn, p);
             collapse(r);
-            return 0;
         }
         else {
             /* Nothing resolved, so just return the original path */
             strcpy(resolved, path);
             collapse(resolved);
-            return 0;
         }
+        return 0;
     }
 
 }

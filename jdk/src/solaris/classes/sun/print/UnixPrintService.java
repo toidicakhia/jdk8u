@@ -251,7 +251,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
                 PrintServiceLookupProvider.getBSDCommandIndex();
         }
 
-        String command = "/usr/sbin/lpc status " + printer
+        String command = "@TERMUX_PREFIX@/bin/lpc status " + printer
             + lpcStatusCom[PrintServiceLookupProvider.cmdIndex];
         String results[]= PrintServiceLookupProvider.execCmd(command);
 
@@ -366,7 +366,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
         }
 
         int qlen = 0;
-        String command = "/usr/sbin/lpc status " + printer
+        String command = "@TERMUX_PREFIX@/bin/lpc status " + printer
             + lpcQueueCom[PrintServiceLookupProvider.cmdIndex];
         String results[] = PrintServiceLookupProvider.execCmd(command);
 
